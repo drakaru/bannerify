@@ -63,22 +63,6 @@ class BannerForegroundObject(BannerObject):
         else:
             self.shape = ForegroundShapes.SQUARE
 
-    def __str__(self):
-        return ".".join(
-            [
-                str(self.shape),
-                str(self.color1),
-                str(self.color2),
-                str(self.width),
-                str(self.height),
-                str(self.x),
-                str(self.y),
-                banner_bool_str(self.stroke),
-                banner_bool_str(self.mirror),
-                str(self.rotation)
-            ]
-        )
-
 
 start_x = 394
 start_y = 394
