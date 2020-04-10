@@ -18,10 +18,6 @@ start_y = 394
 end_x = 1134
 end_y = 1134
 
-w = 740
-h = 740
-
-
 def most_common(objects):
     colours = {}
     for object in objects[1:]:
@@ -58,16 +54,13 @@ if __name__ == '__main__':
 
     image = Image.open(image_path)
 
-    sampled_image = image.resize((20, 20), Image.LANCZOS)
+    sampled_image = image.resize((21, 21), Image.LANCZOS)
     img_data = sampled_image.getdata()
     width, height = sampled_image.size
 
     pixels = list(img_data)
     pixels = [get_closest_match(rgb) for rgb in pixels]
     pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
-
-    cell_width = ceil(w / width)
-    cell_height = ceil(h / height)
 
     objects = []
     background = BannerBackground()
@@ -95,7 +88,7 @@ if __name__ == '__main__':
             banner_object.color1 = pixels[y][x]
             banner_object.color2 = pixels[y][x]
             banner_object.x = p1x + ceil(w/2)
-            banner_object.y = p1y + ceil(h/2)
+            banner_object.y = p1y - ceil(h/2)
             banner_object.width = w+2
             banner_object.height = h+2
             banner_object.rotation = 0
