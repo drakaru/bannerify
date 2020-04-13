@@ -1,31 +1,43 @@
 import os
 import sys
-from math import ceil, floor
+from math import ceil
 
 from PIL import Image
-from PIL.Image import LANCZOS
 
 from palette import get_closest_match
 from banner import BannerBackground, BannerForegroundObject
 
+# Turn an image into a bannerlord banner!
+#
+# M&B accepts banners in the form of codes.
+#
+# codes are dot separated values (ints) which form "objects", like so:
+# shape.color1.color2.width.height.x.y.stroke.mirror.rotation
 
-# Bannerlord hardcaps to 400 objects, including the background.
+# banners are limited to 400 "objects", background inclusive.
 object_limit = 400
+# the first object is the background
+#
+# colors are paletted, with a 159 colors in total (see palette.py)
 
-
+# defines the 740x740 area in the middle of the flag
+# it can be extended horizontally on the flag and various contexts has differing UVs
+# ie, shields, soldier icons, etc
 start_x = 394
 start_y = 394
 end_x = 1134
 end_y = 1134
 
+
 def most_common(objects):
-    colours = {}
-    for object in objects[1:]:
-        count = colours.get(object.color1, 0)
-        colours[object.color1] = count+1
+    """return the most common color present in a banner"""
+    colors = {}
+    for banner_object in objects[1:]:
+        count = colors.get(banner_object.color1, 0)
+        colors[banner_object.color1] = count+1
     highest = None
     count = 0
-    for k,v in colours.items():
+    for k, v in colors.items():
         if v > count:
             count = v
             highest = k
@@ -41,20 +53,8 @@ def lerp(start, end, t):
     return start * (1 - t) + end * t
 
 
-if __name__ == '__main__':
-    try:
-        image_path = sys.argv[1]
-    except IndexError:
-        print("Missing argument: image_path")
-        sys.exit(1)
+def bannerify(sampled_image):
 
-    if not os.path.exists(image_path):
-        print(f"input image {image_path} does not exist.")
-        sys.exit(1)
-
-    image = Image.open(image_path)
-
-    sampled_image = image.resize((21, 21), Image.LANCZOS)
     img_data = sampled_image.getdata()
     width, height = sampled_image.size
 
@@ -64,10 +64,10 @@ if __name__ == '__main__':
 
     objects = []
     background = BannerBackground()
-    background.width = end_x - start_x
+    background.width = 1528  # end_x - start_x
     background.height = end_y - start_y
     background.x = start_x // 2 + end_x // 2
-    background.y = start_y // 2 + end_y // 2
+    background.y = start_y // 2 + end_y // 2 - 20
     objects.append(background)
 
     for y in range(0, height):
@@ -94,17 +94,62 @@ if __name__ == '__main__':
             banner_object.rotation = 0
             objects.append(banner_object)
 
-    print(len(objects))
+    pre_opt_objects = len(objects)
 
-    commonest_colour = most_common(objects)
-    objects = list(filter(lambda x: x.color1 != commonest_colour, objects))
-    objects[0].color1 = commonest_colour
-    objects[0].color2 = commonest_colour
+    # simplest optimisation
+    # TODO : investigate better methods
+    commonest_color = most_common(objects)
+    objects = list(filter(lambda x: x.color1 != commonest_color, objects))
+    objects[0].color1 = commonest_color
+    objects[0].color2 = commonest_color
 
-    print(len(objects))
+    post_opt_objects = len(objects)
 
-    code = ".".join([str(obj) for obj in objects])
-    print(len(code))
+    objects = objects if post_opt_objects < object_limit else None
+
+    if objects:
+        percent_saved = (pre_opt_objects - post_opt_objects) / pre_opt_objects * 100
+        print(f"{width}x{height}: {post_opt_objects}: {percent_saved:0.2f}% saved.")
+    else:
+        print(f"{width}x{height}: {post_opt_objects}: failed.")
+
+    return objects
+
+
+def iterative_bannerify(image):
+    width = 20
+    height = 20
+    final_banner = None
+    while True:
+        sampled_image = image.resize((width, height), Image.LANCZOS)
+        candidate = bannerify(sampled_image)
+        if not candidate:
+            break
+        final_banner = candidate
+        if width == height:
+            width = width + 1
+        else:
+            height = height + 1
+
+    return final_banner
+
+
+if __name__ == '__main__':
+    try:
+        image_path = sys.argv[1]
+    except IndexError:
+        print("Missing argument: image_path")
+        sys.exit(1)
+
+    if not os.path.exists(image_path):
+        print(f"input image {image_path} does not exist.")
+        sys.exit(1)
+
+    image = Image.open(image_path)
+    banner = iterative_bannerify(image)
+
+    code = ".".join([str(obj) for obj in banner])
+    print()
     print(code)
 
     image_name = os.path.splitext(os.path.basename(image_path))[0]
